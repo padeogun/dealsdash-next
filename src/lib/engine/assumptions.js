@@ -17,6 +17,11 @@ export const ASSUMPTIONS = [
   ["ltv", "Bridge advance of price", 70, "%", "Finance", "Check against your agreement in principle"],
   ["brM", "Bridge interest per month", 0.85, "%", "Finance", "Estimate"],
   ["brArr", "Bridge arrangement fee", 2, "%", "Finance", "Estimate"],
+  ["brTerm", "Bridge term with interest retained, months", 12, "n", "Lender terms", "Roma: interest comes off the first advance"],
+  ["worksPct", "Share of refurb funded by the lender", 0, "%", "Lender terms", "Released in arrears of works"],
+  ["brLegalPct", "Lender legal fee, % of gross loan with VAT", 0.36, "%", "Lender terms", "Roma: 0.3% + VAT"],
+  ["brLegalMin", "Lender legal fee minimum", 1800, "£", "Lender terms", "Roma: includes VAT"],
+  ["brExit", "Bridge exit fee", 0, "%", "Lender terms", "Roma: may apply, amount not published"],
   ["plRate", "Private lender rate per year", 8, "%", "Finance", "Your lender terms"],
   ["draw", "Refurb outstanding on average", 50, "%", "Finance", "Estimate"],
   ["mFlip", "Months held, flip, if no programme", 7, "n", "Time and holding", "Used until a date is entered"],
@@ -49,5 +54,6 @@ export const defaultAssumptions = () => Object.fromEntries(ASSUMPTIONS.map((a) =
 export function toConfig(a) {
   const merged = { ...defaultAssumptions(), ...(a || {}) }, c = {};
   for (const k in merged) c[k] = PCT.has(k) ? merged[k] / 100 : merged[k];
+  c.retained = !!merged.lender;   // a named lender uses the retained-interest calculation
   return c;
 }

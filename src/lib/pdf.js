@@ -28,7 +28,7 @@ export async function buildPdf(d, R, ws) {
   if (R.prog) { head("Programme", M, y, W - 2 * M); y += 6; const pw = (W - 2 * M) / 6; progRows(R).forEach((x, i) => { text(fmtDate(x[1]), M + i * pw, y, { size: 8.5, bold: x[0] === "Back on market" }); text(x[0], M + i * pw, y + 3.8, { size: 6.8, color: MUTED }); }); y += 11; }
   head("Assumptions", M, y, W - 2 * M); y += 5.5;
   // Only the assumptions the verdict used, marked as confirmed or assumed
-  const keys = ASSUMPTIONS.filter(([k, , , , g]) => !k.startsWith("rate") && !k.startsWith("prog") && (g !== "BRRR" || R.isB) && (g !== "Auction fees" || d.route === "auction") && !(k === "mFlip" || k === "mBrrr") && (g !== "Sale" || !R.isB) && (g !== "Refurb" || R.ref.basis !== "total"));
+  const keys = ASSUMPTIONS.filter(([k, , , , g]) => !k.startsWith("rate") && !k.startsWith("prog") && (g !== "BRRR" || R.isB) && (g !== "Auction fees" || d.route === "auction") && !(k === "mFlip" || k === "mBrrr") && (g !== "Lender terms" || d.a.lender) && (g !== "Sale" || !R.isB) && (g !== "Refurb" || R.ref.basis !== "total"));
   const colW = (W - 2 * M) / 3, per = Math.ceil(keys.length / 3);
   keys.forEach((a, i) => { const v = a[3] === "£" ? gbp(d.a[a[0]]) : a[3] === "%" ? d.a[a[0]] + "%" : String(d.a[a[0]]), on = d.conf?.[a[0]], x = M + Math.floor(i / per) * colW, yy = y + (i % per) * 3.9; text(a[1], x, yy, { size: 6.8, color: MUTED }); text(v + (on ? "" : " *"), x + colW - 4, yy, { size: 6.8, right: true, bold: !!on }); });
   y += per * 3.9 + 0.5; text("* Assumed. Bold figures have been confirmed.", M, y, { size: 6.8, color: MUTED }); y += 6;

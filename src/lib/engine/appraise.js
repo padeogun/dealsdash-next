@@ -13,8 +13,24 @@ function acquire(P, refurb, route, c, months, buyer = "company", nation = "ENG")
   const r = { P, refurb, sdlt: sdltValue(P, { buyer, nation }), prem: auction ? Math.max(c.bpMin, c.bpRate * P) : 0,
     seller: auction ? c.sLegal + c.sDisb + c.sBank : 0, own: c.ownLegal + c.searches + c.lendFees, bridge: c.ltv * P };
   r.buying = r.prem + r.seller + r.own;
+  if (c.retained) return lenderFinance(r, P, refurb, c, months);
   // Finance = bridge interest + arrangement fee + private-lender interest on all other money in the deal
   r.fin = r.bridge * c.brM * months + r.bridge * c.brArr + ((P - r.bridge) + r.sdlt + r.buying + refurb * c.draw) * c.plRate / 12 * months;
+  r.holdc = c.hold * months;
+  return r;
+}
+// Retained-interest bridge. Interest and the fee come off the day-one advance, so other lenders fund the gap.
+// Interest cost runs for the months held, assuming unused retained interest is refunded. Confirm that with the lender.
+function lenderFinance(r, P, refurb, c, months) {
+  const day1 = c.ltv * P, works = refurb * c.worksPct; // works are released in arrears, on average part-drawn
+  r.gross = day1 + works;
+  const legal = Math.max(c.brLegalMin, r.gross * c.brLegalPct);
+  r.own += legal; r.buying += legal;
+  const fee = r.gross * c.brArr, retainedHeld = day1 * c.brM * c.brTerm;
+  r.bridge = day1 - fee - retainedHeld + works;       // money actually received, including works once drawn
+  const bridgeInt = (day1 + works * c.draw) * c.brM * months, exitFee = r.gross * c.brExit;
+  const privateBase = (P - (day1 - fee - retainedHeld)) + r.sdlt + r.buying + (refurb - works) * c.draw;
+  r.fin = bridgeInt + fee + exitFee + privateBase * c.plRate / 12 * months;
   r.holdc = c.hold * months;
   return r;
 }

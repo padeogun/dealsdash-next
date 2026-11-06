@@ -4,6 +4,7 @@ import { flip, brrr, maxFlip, maxBrrr, nationCode } from "./engine/appraise.js";
 import { schedule } from "./programme/schedule.js";
 import { TEMPLATE } from "./programme/template.js";
 import { refurbOf, scopeOf } from "./refurb.js";
+import { lenderChecks, romaProduct } from "./engine/lenders.js";
 
 // England and Wales bank holidays, carried from the repo's fallback list. Verify at gov.uk/bank-holidays.
 export const BANK_HOLIDAYS = ["2026-12-25", "2026-12-28", "2027-01-01", "2027-03-26", "2027-03-29", "2027-05-03", "2027-05-31", "2027-08-30", "2027-12-27", "2027-12-28", "2028-01-03", "2028-04-14", "2028-04-17", "2028-05-01", "2028-05-29", "2028-08-28", "2028-12-25", "2028-12-26"];
@@ -85,6 +86,12 @@ export function evaluate(d, ws = {}) {
     stress = { head: [`Scenario at ${gbp(P)}`, "Left in", "Cash flow"], rows: [row("Likely value, likely rent", d.vLikely, ref.likely, d.rentLikely), row("Worst value, cautious rent", d.vWorst, ref.likely, d.rentWorst, 0, true), row("Worst value less 10%", d.vWorst * 0.9, ref.likely, d.rentWorst), row("Worst value, high refurb", d.vWorst, ref.high, d.rentWorst), row("Rent less 10%, rate up 1 point", d.vWorst, ref.likely, d.rentWorst * 0.9, 0.01)] };
     stats = [[gbp(ceiling), "Ceiling"], [atP.left < 0 ? `${gbp(-atP.left)} out` : gbp(atP.left), "Left in, worst value"], [gbp(atP.cf), "Monthly cash flow"], [gbp(atP.cash), "Cash before refinance, excluding bridge"]];
     Object.assign(base, { cash: atP.cash, bridge: atP.bridge, cashFlow: atP.cf });
+  }
+  if (c.retained && !isB) {
+    const a = flip(P, d.vWorst, ref.likely, rt, c, 0, opts), prod = romaProduct(P || 1, ref.likely / (1 + c.cont));
+    lenderChecks(a.gross, P, d.vWorst, P + ref.likely, prod).forEach((t) => flags.push(t));
+    flags.push(`Roma product: ${prod.name}, from ${prod.rate}% a month. Rates are "from" rates, so confirm the terms and any exit fee`);
+    base.lenderProduct = prod.name; base.grossLoan = a.gross;
   }
   const gap = P - ceiling;
   // A gap inside the negotiate range is Negotiate. Anything beyond it is No-go

@@ -7,6 +7,7 @@ import { evaluate } from "../lib/evaluate.js";
 import { STAGES } from "../lib/portfolio.js";
 import { ASSUMPTIONS } from "../lib/engine/assumptions.js";
 import { SCOPE_LABELS } from "../lib/refurb.js";
+import { lenderAssumptions } from "../lib/engine/lenders.js";
 import { Report } from "./Report.jsx";
 import { RefurbLines } from "./RefurbLines.jsx";
 import { ProgrammePanel } from "./ProgrammePanel.jsx";
@@ -67,8 +68,10 @@ export function DealSheet({ id, go }) {
 }
 // Only the assumptions this deal uses are shown. Editing one marks it confirmed.
 function Assumptions({ d, set }) {
-  const used = ASSUMPTIONS.filter(([k, , , , g]) => (g !== "BRRR" || d.strategy === "brrr") && (g !== "Auction fees" || d.route === "auction") && (g !== "Sale" || d.strategy === "flip") && !(k === "mFlip" && d.strategy === "brrr") && !(k === "mBrrr" && d.strategy === "flip") && (!k.startsWith("rate") || d.refMode === "rough"));
+  // Choosing a lender loads its published terms, marked Assumed until you've had them confirmed
+  const pick = (v) => { if (v === "") { const { lender, ...a } = d.a; set({ a: { ...a, lender: "" } }); return; } const c = d.a; const likely = d.refMode === "items" ? (d.lines || []).filter((l) => l.on).reduce((s, l) => s + (l.likely || 0), 0) * (1 + c.cont / 100) : d.refMode === "total" ? d.refLikely : (d.area || 0) * (d.rate || 0) * (1 + c.cont / 100); set({ a: { ...c, ...lenderAssumptions(d.offer ?? d.price, likely, c.cont).patch } }); };
+  const used = ASSUMPTIONS.filter(([k, , , , g]) => (g !== "BRRR" || d.strategy === "brrr") && (g !== "Auction fees" || d.route === "auction") && (g !== "Sale" || d.strategy === "flip") && !(k === "mFlip" && d.strategy === "brrr") && !(k === "mBrrr" && d.strategy === "flip") && (g !== "Lender terms" || d.a.lender) && (!k.startsWith("rate") || d.refMode === "rough"));
   const n = used.filter((a) => d.conf?.[a[0]]).length; let last = "";
-  return <Section title="Assumptions" summary={`${n} of ${used.length} confirmed`}>{used.map(([k, l, , u, g, src]) => { const head = g !== last; last = g; const on = !!d.conf?.[k]; return <React.Fragment key={k}>{head && <h3 className="group">{g}</h3>}<div className="arow"><label htmlFor={`a-${k}`}>{l}{u !== "n" && ` (${u})`}<span className="src">{src}</span></label><Num id={`a-${k}`} value={d.a[k]} onChange={(v) => { if (v == null) return; const p = { a: { ...d.a, [k]: v }, conf: { ...d.conf, [k]: true } }; if (k.startsWith("rate") && d.rate === d.a[k]) p.rate = v; set(p); }} /><button type="button" className="chip" aria-pressed={on} onClick={() => set({ conf: { ...d.conf, [k]: !on } })}>{on ? "Confirmed" : "Assumed"}</button></div></React.Fragment>; })}</Section>;
+  return <Section title="Assumptions" summary={`${n} of ${used.length} confirmed`}><Select id="lender" label="Bridge lender" value={d.a.lender || ""} onChange={pick} options={[["", "Generic terms"], ["roma", "Roma Finance (Product Guide, July 2026)"]]} />{used.map(([k, l, , u, g, src]) => { const head = g !== last; last = g; const on = !!d.conf?.[k]; return <React.Fragment key={k}>{head && <h3 className="group">{g}</h3>}<div className="arow"><label htmlFor={`a-${k}`}>{l}{u !== "n" && ` (${u})`}<span className="src">{src}</span></label><Num id={`a-${k}`} value={d.a[k]} onChange={(v) => { if (v == null) return; const p = { a: { ...d.a, [k]: v }, conf: { ...d.conf, [k]: true } }; if (k.startsWith("rate") && d.rate === d.a[k]) p.rate = v; set(p); }} /><button type="button" className="chip" aria-pressed={on} onClick={() => set({ conf: { ...d.conf, [k]: !on } })}>{on ? "Confirmed" : "Assumed"}</button></div></React.Fragment>; })}</Section>;
 }
 export const ScopeTicks = ({ d, set }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: "2px 12px" }}>{SCOPE_LABELS.map(([k, l]) => <label className="check" key={k}><input type="checkbox" id={`scope-${k}`} checked={!!d.scope?.[k]} onChange={(e) => set({ scope: { ...d.scope, [k]: e.target.checked } })} />{l}</label>)}</div>;

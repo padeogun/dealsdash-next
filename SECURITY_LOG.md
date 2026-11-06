@@ -74,3 +74,8 @@ These small changes went in as low risk. Reverse any you disagree with.
 - Each user can create only one workspace.
 - Viewers can no longer run AI features or upload or delete packs.
 - Programme owner labels now say "You".
+
+## 2026-11-06 Roma Finance lender terms
+| # | Severity | Finding | Action | Location |
+|---|---|---|---|---|
+| 1 | None | Lender terms are static data plus one select with fixed options. Numbers pass through existing validation, and flags render as React text | No new input or network route | `src/lib/engine/lenders.js`, `DealSheet.jsx` |

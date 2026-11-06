@@ -5,6 +5,7 @@ import { flip, brrr, maxFlip, maxBrrr } from "./appraise.js";
 import { splitBudget } from "./solve.js";
 import { evaluate } from "../evaluate.js";
 import { refurbOf, scopeOf } from "../refurb.js";
+import { lenderAssumptions, romaProduct } from "./lenders.js";
 import { ashtonDeal } from "../../data/demoSeed.js";
 const c = toConfig(defaultAssumptions()), L = 39491, H = 55200, near = (a, b) => expect(Math.abs(a - b)).toBeLessThan(1);
 const o = { buyer: "company", nation: "ENG" };
@@ -22,4 +23,11 @@ describe("Ashton deal", () => {
   it("programme drives months held", () => { const R = evaluate(d, {}); expect(R.monthsSource).toBe("programme"); expect(R.prog.keyDates.listed).toBeTruthy(); });
   it("a blank is unknown, never zero", () => { expect(evaluate({ ...d, vWorst: null }, {}).status).toBe("incomplete"); const lines = [{ on: true, name: "X", likely: null }]; expect(evaluate({ ...d, lines }, {}).status).toBe("incomplete"); });
   it("Scotland and Wales aren't given an England tax figure", () => { expect(evaluate({ ...d, nation: "Scotland" }, {}).status).toBe("incomplete"); expect(evaluate({ ...d, nation: "Wales" }, {}).status).toBe("incomplete"); });
+});
+describe("Roma terms", () => {
+  const d = ashtonDeal();
+  const roma = (P, ref, gdv) => { const r = lenderAssumptions(P, ref, 15); return { ...toConfig({ ...defaultAssumptions(), ...r.patch }), product: r.product }; };
+  it("picks the product from the works ratio", () => { expect(roma(55000, 39491).product.name).toBe("Medium Refurbishment"); expect(romaProduct(100000, 0).name).toBe("FLOW Bridge"); expect(romaProduct(100000, 20000).name).toBe("FLOW Refurb"); expect(romaProduct(100000, 40000).name).toBe("FLOW Light Development"); expect(romaProduct(100000, 120000).name).toBe("Heavy Refurbishment"); });
+  it("generic terms still match the workbook", () => { near(maxFlip(150000, L, "auction", c, 0.2, o), 55219); });
+  it("costs reconcile and the deal still solves", () => { const k = roma(55000, L), a = flip(55000, 150000, L, "auction", k, 0, o); near(a.total, 55000 + a.sdlt + a.buying + L + a.fin + a.holdc + a.salec); expect(a.gross).toBeGreaterThan(70000); const R = evaluate({ ...d, a: { ...d.a, ...lenderAssumptions(60000, L, 15).patch } }, {}); near(R.stackTotal, R.ceiling); expect(R.flags.some((f) => f.includes("Roma product"))).toBe(true); });
 });
