@@ -1,0 +1,47 @@
+rules_version = '2';
+// Access is by workspace membership. No email is hard-coded here.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isMember(w) { return signedIn() && exists(/databases/$(database)/documents/workspaces/$(w)/members/$(request.auth.uid)); }
+    function role(w) { return get(/databases/$(database)/documents/workspaces/$(w)/members/$(request.auth.uid)).data.role; }
+    function canEdit(w) { return isMember(w) && role(w) in ['owner', 'editor']; }
+
+    // A user may only read and set their own pointer to a workspace. Membership still controls data.
+    // Security fix 2026-11-06: the pointer holds only workspaceId and must name a workspace the user belongs to (or is creating in this batch).
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['workspaceId'])
+        && existsAfter(/databases/$(database)/documents/workspaces/$(request.resource.data.workspaceId)/members/$(uid));
+      allow delete: if false;
+    }
+    // Invites are added by the admin script only. A person can check their own.
+    match /invites/{email} { allow read: if signedIn() && request.auth.token.email.lower() == email; allow write: if false; }
+    // Encrypted API keys are reachable only by server functions
+    match /aiKeys/{w} { allow read, write: if false; }
+
+    match /workspaces/{w} {
+      allow read: if isMember(w);
+      // Only someone with an invite can create a workspace, and they must own it
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid && request.resource.data.billing == 'pilot'
+        && exists(/databases/$(database)/documents/invites/$(request.auth.token.email.lower()))
+        // Security fix 2026-11-06: one invite gives one workspace, matching resolveWorkspace. Without this an invite is reusable forever.
+        && !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid));
+      // The client can't change the owner or billing state
+      allow update: if canEdit(w) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerUid', 'billing']);
+      allow delete: if false;
+      match /members/{uid} {
+        allow read: if isMember(w);
+        // The creator becomes owner in the same batch that creates the workspace
+        allow create: if signedIn() && uid == request.auth.uid && request.resource.data.role == 'owner'
+          && getAfter(/databases/$(database)/documents/workspaces/$(w)).data.ownerUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+      match /{col}/{id} {
+        allow read: if col in ['deals', 'movements', 'contacts', 'facilities'] && isMember(w);
+        allow write: if col in ['deals', 'movements', 'contacts', 'facilities'] && canEdit(w);
+      }
+    }
+  }
+}

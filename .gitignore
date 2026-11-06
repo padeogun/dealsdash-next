@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-demo/
+.env*
+!.env.example
+.firebase/
+*-debug.log
+functions/node_modules/
+.screener-cache/
+serviceAccount*.json
+# Security fix 2026-11-06: other credential files Firebase tooling creates
+*firebase-adminsdk*.json
+.secret.local
+.runtimeconfig.json
+*.pem

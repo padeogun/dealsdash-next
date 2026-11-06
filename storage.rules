@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Legal packs: workspace members only, PDFs up to 40 MB
+    match /workspaces/{w}/packs/{allPaths=**} {
+      function isMember() { return request.auth != null && request.auth.token.email_verified == true && firestore.exists(/databases/(default)/documents/workspaces/$(w)/members/$(request.auth.uid)); }
+      // Security fix 2026-11-06: viewers can read packs, but only owners and editors can upload or delete them.
+      function canEdit() { return isMember() && firestore.get(/databases/(default)/documents/workspaces/$(w)/members/$(request.auth.uid)).data.role in ['owner', 'editor']; }
+      allow read: if isMember();
+      allow delete: if canEdit();
+      allow create: if canEdit() && request.resource.size < 40 * 1024 * 1024 && request.resource.contentType == 'application/pdf';
+    }
+  }
+}

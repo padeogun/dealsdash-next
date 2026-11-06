@@ -1,0 +1,12 @@
+// The User Guide, rewritten for the new app. Short by design: the screens should explain themselves.
+import React from "react";
+const S = ({ t, children }) => <div className="card"><h2>{t}</h2><div style={{ maxWidth: "65ch", display: "grid", gap: 8 }}>{children}</div></div>;
+export const Guide = () => <div className="stack"><h1>Guide</h1>
+  <S t="Start with a lead"><p style={{ margin: 0 }}>Open Deals and choose Add lead. Paste the Rightmove or auction link, then enter the price, worst and likely end values, and a rough refurb. That's enough for a result.</p></S>
+  <S t="Read the result"><p style={{ margin: 0 }}><b>Go</b> means the price meets your rules. <b>Negotiate</b> means it only works at or below the ceiling, and the gap is inside your negotiate range. <b>No-go</b> means the gap is too wide or the deal fails your tests. <b>Incomplete</b> lists what's missing, because a blank is never treated as £0.</p><p style={{ margin: 0 }}>The ceiling always uses your worst-case value. Results reflect your own rules and assumptions. They aren't advice.</p></S>
+  <S t="Add detail when it matters"><p style={{ margin: 0 }}>Move refurb from rough to line by line. Ticked lines set the works in the programme, so you only enter scope once. Add the auction or offer date to see when the property is back on the market. Months held then come from the programme, unless you enter an override.</p><p style={{ margin: 0 }}>Assumptions show as Assumed until you confirm or change them. The PDF shows which is which.</p></S>
+  <S t="Run the business"><p style={{ margin: 0 }}>Record real money once in Capital and link it to a deal. Home, risk, and each deal's actual result read from those records. Set a deal's stage to Held to track tenancy, compliance, rent and refinance readiness.</p></S>
+  <S t="Choose areas"><p style={{ margin: 0 }}>Areas ranks UK councils for Flip or BRRR from public data. Tick councils to make them core areas. Deals outside them get a flag.</p></S>
+  <S t="AI is optional"><p style={{ margin: 0 }}>AI is off by default and uses your own API key. It can triage a legal pack and research leads, but nothing it finds changes a verdict by itself. Always check results and use a solicitor.</p></S>
+  <S t="Limits to know"><p style={{ margin: 0 }}>Tax isn't calculated for Scotland or Wales. Listings aren't imported: the app saves your link and you enter the details. Check tax rates, finance terms and refurb costs against real quotes. Planning results can be incomplete, so a blank doesn't confirm there's no constraint.</p></S>
+</div>;
