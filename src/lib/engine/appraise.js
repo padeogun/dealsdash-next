@@ -22,7 +22,8 @@ function acquire(P, refurb, route, c, months, buyer = "company", nation = "ENG")
 // Retained-interest bridge. Interest and the fee come off the day-one advance, so other lenders fund the gap.
 // Interest cost runs for the months held, assuming unused retained interest is refunded. Confirm that with the lender.
 function lenderFinance(r, P, refurb, c, months) {
-  const day1 = c.ltv * P, works = refurb * c.worksPct; // works are released in arrears, on average part-drawn
+  // The lender funds the agreed budget. An overrun above it, as in the high refurb stress, is your own money
+  const day1 = c.ltv * P, works = Math.min(refurb * c.worksPct, c.worksCap ?? Infinity); // released in arrears, on average part-drawn
   r.gross = day1 + works;
   const legal = Math.max(c.brLegalMin, r.gross * c.brLegalPct);
   r.own += legal; r.buying += legal;

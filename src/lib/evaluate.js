@@ -50,6 +50,7 @@ export function evaluate(d, ws = {}) {
   if (isB && d.rentWorst == null) missing.push("cautious rent");
   if (isB && d.rentLikely == null) missing.push("likely rent");
   if (d.nation === "Scotland" || d.nation === "Wales") missing.push(`${d.nation === "Scotland" ? "LBTT" : "LTT"} isn't built yet, so work out the tax manually`);
+  if (c.retained && ref.likely != null) c.worksCap = ref.likely * c.worksPct;
   const base = { c, ref, prog, flags, isB, monthsSource, months: isB ? c.mBrrr : c.mFlip };
   if (missing.length) return { ...base, status: "incomplete", word: "Incomplete", missing };
 

@@ -18,7 +18,7 @@ export const ASSUMPTIONS = [
   ["brM", "Bridge interest per month", 0.85, "%", "Finance", "Estimate"],
   ["brArr", "Bridge arrangement fee", 2, "%", "Finance", "Estimate"],
   ["brTerm", "Bridge term with interest retained, months", 12, "n", "Lender terms", "Roma: interest comes off the first advance"],
-  ["worksPct", "Share of refurb funded by the lender", 0, "%", "Lender terms", "Released in arrears of works"],
+  ["worksPct", "Share of refurb funded by the lender", 0, "%", "Lender terms", "Released in arrears. Confirm contingency is included"],
   ["brLegalPct", "Lender legal fee, % of gross loan with VAT", 0.36, "%", "Lender terms", "Roma: 0.3% + VAT"],
   ["brLegalMin", "Lender legal fee minimum", 1800, "£", "Lender terms", "Roma: includes VAT"],
   ["brExit", "Bridge exit fee", 0, "%", "Lender terms", "Roma: may apply, amount not published"],

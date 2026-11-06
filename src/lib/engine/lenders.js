@@ -15,7 +15,7 @@ export const romaProduct = (cmv, works) => ROMA.products.find((p) => works / cmv
 // Overlay applied when a deal picks this lender. Roma's fee matches the 2% default, and the valuation stays a placeholder
 export function lenderAssumptions(cmv, refurbLikely, contPct) {
   const works = refurbLikely == null ? 0 : refurbLikely / (1 + contPct / 100), p = romaProduct(cmv || 1, works);
-  return { product: p, patch: { lender: "roma", brM: p.rate, ltv: p.ltv, brArr: 2, brTerm: 12, worksPct: p.works ? Math.round((100 / (1 + contPct / 100)) * 100) / 100 : 0, lendFees: 600 } };
+  return { product: p, patch: { lender: "roma", brM: p.rate, ltv: p.ltv, brArr: 2, brTerm: 12, worksPct: p.works ? 100 : 0, lendFees: 600 } };
 }
 // Roma rules a deal can break. Each one becomes a flag on the report
 export function lenderChecks(gross, cmv, gdv, cost, product) {
