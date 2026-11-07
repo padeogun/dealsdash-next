@@ -6,12 +6,15 @@ const { setGlobalOptions } = require("firebase-functions/v2");
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const crypto = require("crypto");
-const admin = require("firebase-admin");
+// firebase-admin 14 only offers the modular entry points
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 const { PDFDocument } = require("pdf-lib");
 const S = require("./aiShared.js");
-admin.initializeApp();
+initializeApp();
 setGlobalOptions({ maxInstances: 10 }); // Security fix 2026-11-06: caps how far a call flood can scale the hosting bill
-const db = admin.firestore();
+const db = getFirestore();
 const EPC_API_KEY = defineSecret("EPC_API_KEY");
 const AI_KEY_SECRET = defineSecret("AI_KEY_ENCRYPTION_KEY"); // 32 random bytes as base64
 const REGION = "europe-west2", MODEL = "claude-sonnet-5-5", ANTHROPIC = "https://api.anthropic.com/v1/messages";
@@ -75,7 +78,7 @@ exports.reviewLegalPack = onCall({ region: REGION, secrets: [AI_KEY_SECRET], tim
   // The file must sit in the caller's own workspace folder
   if (typeof path !== "string" || !path.startsWith(`workspaces/${m.wid}/packs/`) || path.includes("..")) throw new HttpsError("permission-denied", "That file isn't in your workspace.");
   const key = await aiKeyFor(m.wid);
-  let buf; try { [buf] = await admin.storage().bucket().file(path).download(); } catch (e) { throw new HttpsError("not-found", "Couldn't read that file."); }
+  let buf; try { [buf] = await getStorage().bucket().file(path).download(); } catch (e) { throw new HttpsError("not-found", "Couldn't read that file."); }
   if (buf.length > S.MAX_INPUT_MB * 1048576) throw new HttpsError("invalid-argument", `File is over ${S.MAX_INPUT_MB} MB.`);
   let pdf; try { pdf = await PDFDocument.load(buf, { ignoreEncryption: true }); } catch (e) { throw new HttpsError("invalid-argument", "This couldn't be read as a PDF."); }
   const pages = pdf.getPageCount(), chunks = [];
