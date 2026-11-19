@@ -17,6 +17,21 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build
+      # Vite bakes the Firebase web settings into the bundle at build time. They are public
+      # (Hosting also serves them at /__/firebase/init.json), so they are repository variables,
+      # not secrets. Without them the app cannot start and sits on "Loading…".
+      - name: Build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+        run: |
+          # Stop before deploying if any setting is missing, so a broken build never replaces the live site
+          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_APP_ID; do
+            if [ -z "${!v}" ]; then echo "::error::Repository variable $v is not set. Add it under Settings > Secrets and variables > Actions > Variables."; exit 1; fi
+          done
+          npm run build
 
       - run: npx firebase-tools@15.34.0 deploy --only hosting --token ${{ secrets.FIREBASE_TOKEN }} --non-interactive --project dealsdash-next

@@ -34,9 +34,13 @@ function Demo() { const [ad, setAd] = useState(null); useEffect(() => { import("
 // Sign-in gate. Access is invite-only for now, and billing can attach to the workspace later.
 function Live() {
   const [fb, setFb] = useState(null), [user, setUser] = useState(undefined), [wid, setWid] = useState(undefined), [err, setErr] = useState("");
-  useEffect(() => { import("./data/firebase.js").then((m) => { setFb(m); m.onUser(setUser); }); }, []);
+  // A failed start-up (missing Firebase settings, or the chunk not loading) shows a message rather than "Loading…" forever
+  const [bootErr, setBootErr] = useState("");
+  useEffect(() => { import("./data/firebase.js").then((m) => { setFb(m); m.onUser(setUser); }).catch(() => setBootErr("DealsDash couldn't start. Refresh to try again, and if it keeps happening the site needs redeploying.")); }, []);
   useEffect(() => { if (!fb) return; if (!user) { setWid(undefined); return; } if (!user.emailVerified) { setWid(null); return; } fb.resolveWorkspace(user).then(setWid).catch(() => setErr("Your account couldn't be loaded. Try again.")); }, [fb, user]);
   const adapter = useMemo(() => (fb && wid ? fb.firebaseAdapter(wid) : null), [fb, wid]);
+  // Returns come after every hook, so React sees the same hooks on each render
+  if (bootErr) return <div className="centre"><p className="note">{bootErr}</p></div>;
   if (user === undefined || !fb) return <div className="centre"><p className="note">Loading…</p></div>;
   if (!user) return <div className="centre"><h1>DealsDash</h1><p className="note">Go/no-go reports for UK property deals.</p><button className="btn" onClick={() => fb.signIn().catch(() => setErr("Sign-in didn't complete. Try again."))}>Sign in with Google</button><p className="note">{err}</p></div>;
   if (wid === undefined) return <div className="centre"><p className="note">{err || "Loading your workspace…"}</p></div>;

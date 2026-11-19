@@ -79,3 +79,22 @@ These small changes went in as low risk. Reverse any you disagree with.
 | # | Severity | Finding | Action | Location |
 |---|---|---|---|---|
 | 1 | None | Lender terms are static data plus one select with fixed options. Numbers pass through existing validation, and flags render as React text | No new input or network route | `src/lib/engine/lenders.js`, `DealSheet.jsx` |
+
+## 2026-11-19 Deploy workflow: Firebase web settings and start-up error
+Change: the deploy workflow's build step reads the five `VITE_FIREBASE_*` values from repository variables through `env` and stops before building if any is empty. `main.jsx` shows a plain message if the Firebase chunk fails to load. Finding 1 was fixed before commit. Nothing else changed in this review.
+
+| # | Severity | Finding | Action | Location |
+|---|---|---|---|---|
+| 1 | Bug, not security | The new `if (bootErr) return` sat above a `useEffect` and a `useMemo`. When start-up failed, React 18 would throw "Rendered fewer hooks than expected" and the page would go blank, so the message would never show. | **Fixed** the same day: the return now sits after every hook, next to the "Loading…" return. | `src/main.jsx:43` |
+| 2 | None | The five values are public web config, also served at `/__/firebase/init.json` and in the bundle. None is a secret, so variables are fine. Access still depends on rules and a restricted API key. | No issue. | `.github/workflows/deploy.yml` |
+| 3 | None | Script injection: `vars.*` reach the script only through `env`, the loop uses fixed names with `${!v}`, and the trigger is push to `main`, so no event text enters the shell. | No issue. Read only. | `.github/workflows/deploy.yml` |
+| 4 | None | The start-up message is fixed text. It shows no error, path or config. | No issue. | `src/main.jsx:39` |
+
+**Recommendations (pre-existing, not changed)**
+1. Replace `FIREBASE_TOKEN` (deprecated) with a service account, ideally Workload Identity Federation via `google-github-actions/auth`. Until then, pass the token through `env` rather than inline `${{ secrets.* }}`.
+2. Add `permissions: contents: read` so the job token isn't write by default.
+3. Pin `actions/checkout` and `actions/setup-node` to commit SHAs.
+4. Add `concurrency: { group: deploy-hosting, cancel-in-progress: false }` so two pushes can't deploy out of order.
+5. Move Node 23 (end of life) to an LTS line, 22 or 24.
+6. Restrict the Firebase API key in Google Cloud (HTTP referrers, allowed APIs) and turn on App Check (open item 5, 2026-11-06).
+7. Consider a GitHub `production` environment with required reviewers for the deploy job.
