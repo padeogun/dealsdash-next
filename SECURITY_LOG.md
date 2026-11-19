@@ -119,3 +119,10 @@ Change: the deploy workflow pins `actions/checkout` and `actions/setup-node` (v4
 **Recommendations still open**
 6. Restrict the Firebase API key in Google Cloud (HTTP referrers, allowed APIs) and turn on App Check (open item 5, 2026-11-06).
 7. Consider a GitHub `production` environment with required reviewers for the deploy job. Its branch rule would also close finding 1.
+
+## 2026-11-19 Firebase browser API key restricted to the app's websites
+Change, made in Google Cloud console (APIs & Services > Credentials > Browser key, auto created by Firebase): application restriction set from None to Websites, allowing `https://dealsdash-next.web.app/*`, `https://dealsdash-next.firebaseapp.com/*` (the sign-in handler) and `http://localhost:5173/*` (local `npm run dev`). The existing API restriction (25 Firebase APIs) is unchanged. The five `VITE_FIREBASE_*` repository variables were also added and the deploy re-run, which restored the live site.
+
+Checked: Identity Toolkit with this key returns 403 with no referrer and 200 with the live site as referrer. The signed-in app loads Home with no console errors.
+
+This closes the API key half of recommendation 6. Still open: App Check (6), a `production` environment (7), adding the `FIREBASE_SERVICE_ACCOUNT` secret and deleting `FIREBASE_TOKEN` (the workflow warns on every token deploy), and Workload Identity Federation later. A local dev server on another port (for example `vite preview` on 4173) needs that address added to the key first.
