@@ -3,19 +3,38 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches: [main]
+  # Lets a deploy be started by hand from the Actions tab (Run workflow)
+  workflow_dispatch:
+
+# The job only reads the repository. Nothing in it needs write access to GitHub.
+permissions:
+  contents: read
+
+# One deploy at a time. GitHub keeps only the newest waiting run, so the latest push always
+# deploys and an older build can never overwrite a newer one (not every push gets its own deploy)
+concurrency:
+  group: deploy-hosting
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    # A hand-started run can choose any branch; only main may go live
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Actions are pinned to exact commits so a changed tag cannot alter what runs here
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 23
+          node-version: 22 # Long-term support line. Node 23 is end of life
           cache: npm
 
       - run: npm ci
+
+      # A failing calculation or programme test stops the deploy
+      - name: Test
+        run: npm test
 
       # Vite bakes the Firebase web settings into the bundle at build time. They are public
       # (Hosting also serves them at /__/firebase/init.json), so they are repository variables,
@@ -34,4 +53,29 @@ jobs:
           done
           npm run build
 
-      - run: npx firebase-tools@15.34.0 deploy --only hosting --token ${{ secrets.FIREBASE_TOKEN }} --non-interactive --project dealsdash-next
+      # Secrets cannot be tested in an `if:` directly, so this step records which login is available
+      - name: Choose deploy login
+        id: login
+        env:
+          HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+          HAS_TOKEN: ${{ secrets.FIREBASE_TOKEN != '' }}
+        run: |
+          if [ "$HAS_SA" = "true" ]; then echo "mode=sa" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_TOKEN" = "true" ]; then
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+            echo "::warning::Deploying with FIREBASE_TOKEN, which Firebase has deprecated. Add the FIREBASE_SERVICE_ACCOUNT secret, then delete FIREBASE_TOKEN."
+          else echo "::error::Neither FIREBASE_SERVICE_ACCOUNT nor FIREBASE_TOKEN is set, so there is no way to deploy."; exit 1; fi
+
+      # Preferred: a service account key, limited to Hosting. Sets GOOGLE_APPLICATION_CREDENTIALS for the deploy step
+      - name: Sign in with the service account
+        if: steps.login.outputs.mode == 'sa'
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # The token, when used, goes in through the environment, never pasted into the command line.
+      # `npx firebase` runs the CLI version locked in package-lock.json, already installed and hash-checked by npm ci
+      - name: Deploy
+        env:
+          FIREBASE_TOKEN: ${{ steps.login.outputs.mode == 'token' && secrets.FIREBASE_TOKEN || '' }}
+        run: npx firebase deploy --only hosting --non-interactive --project dealsdash-next

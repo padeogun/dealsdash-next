@@ -98,3 +98,24 @@ Change: the deploy workflow's build step reads the five `VITE_FIREBASE_*` values
 5. Move Node 23 (end of life) to an LTS line, 22 or 24.
 6. Restrict the Firebase API key in Google Cloud (HTTP referrers, allowed APIs) and turn on App Check (open item 5, 2026-11-06).
 7. Consider a GitHub `production` environment with required reviewers for the deploy job.
+
+## 2026-11-19 Deploy workflow hardening and service account migration
+Change: the deploy workflow pins `actions/checkout` and `actions/setup-node` (v4.4.0) and `google-github-actions/auth` (v2.1.13) to commit SHAs, moves to Node 22, sets `permissions: contents: read`, adds a `deploy-hosting` concurrency group, runs `npm test` before the build, and adds `workflow_dispatch`. A new step picks the login: the `FIREBASE_SERVICE_ACCOUNT` secret if set, otherwise `FIREBASE_TOKEN` with a deprecation warning, otherwise it fails. The token now reaches firebase-tools only through `env`. This closes recommendations 1 (partly: the token goes through `env` and the service account path is ready, but the key and the token still need swapping, and Workload Identity Federation is not used), 2, 3, 4 and 5 from the entry above. Findings 1, 3 and 9 were fixed before commit.
+
+| # | Severity | Finding | Action | Location |
+|---|---|---|---|---|
+| 1 | Low | `workflow_dispatch` lets anyone with write access run the deploy from any branch or tag, so unreviewed or old code can go live. Write access can already push to `main` or add a workflow, so this adds little today. | **Fixed** before commit: the job now has `if: github.ref == 'refs/heads/main'`. | `.github/workflows/deploy.yml:7` |
+| 2 | Low | A service account key is a long-lived secret. If it leaks it works until it is deleted. | Open. Move to Workload Identity Federation: `permissions: id-token: write`, `workload_identity_provider` and `service_account` in place of `credentials_json`, and `roles/iam.workloadIdentityUser` limited to this repo and `refs/heads/main`. Delete the key and `FIREBASE_TOKEN` afterwards. | `.github/workflows/deploy.yml:67-71` |
+| 3 | Low | `npx firebase-tools@15.34.0` downloads the CLI at deploy time outside the lockfile, and runs it holding the deploy login. The lockfile has 15.35.0 as a dev dependency. | **Fixed** before commit: the deploy step runs `npx firebase`, the locked 15.35.0 copy installed by `npm ci`. | `.github/workflows/deploy.yml:77`, `package.json` |
+| 4 | None | Secrets: `if:` tests only the `mode` output, which is `sa` or `token`. The presence checks reach the shell as `true`/`false` through `env`. No secret is in run text or an output. There is no `pull_request` trigger and no event text in any script. | No issue. Read only. | `.github/workflows/deploy.yml:54-77` |
+| 5 | None | Deploy login: in token mode the expression gives the token. In service account mode it gives an empty string. firebase-tools 15.34.0 and 15.35.0 skip an empty `FIREBASE_TOKEN` and fall through to Application Default Credentials, which the auth action points at `GOOGLE_APPLICATION_CREDENTIALS`. | No issue. Read in `lib/requireAuth.js`. | `.github/workflows/deploy.yml:76` |
+| 6 | None | `contents: read` is enough: checkout needs it, and `credentials_json` needs no GitHub token. | No issue. | `.github/workflows/deploy.yml:10-11` |
+| 7 | None | Pinned SHAs match their tags on GitHub (`git ls-remote`): checkout `11d5960a` = v4.4.0, setup-node `49933ea5` = v4.4.0, auth `c200f369` = v2.1.13. | No issue. Checked. | `.github/workflows/deploy.yml:23,25,69` |
+| 8 | None | `npm test` runs `vitest run` on `src/**/*.test.js` only, so the emulator rules tests are left out. 59 tests pass on Node 22. The login is set after `npm ci`, test and build, so install scripts never see it. | No issue. Run locally. | `vite.config.js`, `.github/workflows/deploy.yml:30-34` |
+| 9 | None | The concurrency comment says "in push order". GitHub keeps one pending run and cancels older pending ones, so the newest push deploys and older ones can't overwrite it, but not every push deploys. | **Fixed** before commit: comment reworded. | `.github/workflows/deploy.yml:13-16` |
+
+**Service account roles for `firebase deploy --only hosting`:** Firebase Hosting Admin (`roles/firebasehosting.admin`) and API Keys Viewer (`roles/serviceusage.apiKeysViewer`). Add Cloud Run Viewer (`roles/run.viewer`) only if Hosting rewrites to Functions or Cloud Run are added. Today the only rewrite is to `/index.html`. Source: the `FirebaseExtended/action-hosting-deploy` service account guide and Google's Cloud Build "Deploy to Firebase" page. **Not tested with a real deploy.**
+
+**Recommendations still open**
+6. Restrict the Firebase API key in Google Cloud (HTTP referrers, allowed APIs) and turn on App Check (open item 5, 2026-11-06).
+7. Consider a GitHub `production` environment with required reviewers for the deploy job. Its branch rule would also close finding 1.
